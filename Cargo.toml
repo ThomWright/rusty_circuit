@@ -1,0 +1,7 @@
+[package]
+name = "circuit"
+version = "0.1.0"
+authors = ["Thom Wright <github@thomwright.co.uk>"]
+
+[dependencies]
+rulinalg="0.4.2"
