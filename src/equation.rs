@@ -1,18 +1,47 @@
-
+use std;
+use rulinalg;
 use rulinalg::matrix::Matrix;
 use rulinalg::matrix::decomposition::PartialPivLu;
 use rulinalg::vector::Vector;
 
+#[derive(Debug)]
 pub struct Equation {
+    nodes: usize,
     nodal_admittances: Matrix<f64>,
     inputs: Vector<f64>,
 }
 
+#[derive(Debug)]
+pub struct Solution {
+    voltages: Vec<f64>,
+    currents: Vec<f64>,
+}
+
+impl Solution {
+    pub fn voltages(&self) -> Vec<f64> {
+        self.voltages.to_owned()
+    }
+    pub fn currents(&self) -> Vec<f64> {
+        self.currents.to_owned()
+    }
+}
+
 impl Equation {
-    pub fn solve(self) -> Vector<f64> {
-        let lu = PartialPivLu::decompose(self.nodal_admittances)
-            .expect("Matrix should be invertible");
-        lu.solve(self.inputs).expect("Matrix should be well-conditioned")
+    pub fn solve(self) -> Result<Solution, EquationError> {
+        let lu = PartialPivLu::decompose(self.nodal_admittances)?;
+        let solution = lu.solve(self.inputs)?;
+
+        let (voltages, currents) = solution.data()
+            .as_slice()
+            .split_at(self.nodes - 1);
+
+        let mut vs = voltages.to_vec();
+        vs.insert(0, 0.0); // ground node
+
+        Ok(Solution {
+            voltages: vs,
+            currents: currents.to_vec(),
+        })
     }
 }
 
@@ -98,16 +127,55 @@ impl EquationBuilder {
         self
     }
 
-    pub fn build(self) -> Result<Equation, String> {
+    pub fn build(self) -> Result<Equation, EquationError> {
         if self.voltage_sources != self.voltage_sources_stamped {
-            return Err(format!("Expected {} voltage sources, stamped {}",
+            return Err(EquationError::IncorrectNumberOfVoltageSources(
+                format!("Expected {} voltage sources, stamped {}",
                                self.voltage_sources,
-                               self.voltage_sources_stamped));
+                               self.voltage_sources_stamped).to_owned()));
         }
         Ok(Equation {
+            nodes: self.nodes,
             nodal_admittances: self.nodal_admittances,
             inputs: self.inputs,
         })
+    }
+}
+
+#[derive(Debug)]
+pub enum EquationError {
+    IncorrectNumberOfVoltageSources(String),
+    Unsolvable(rulinalg::error::Error),
+}
+
+impl std::fmt::Display for EquationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match *self {
+            EquationError::Unsolvable(ref err) => write!(f, "{}", err),
+            EquationError::IncorrectNumberOfVoltageSources(ref s) => write!(f, "{}", s),
+        }
+    }
+}
+
+impl std::error::Error for EquationError {
+    fn description(&self) -> &str {
+        match *self {
+            EquationError::Unsolvable(ref err) => err.description(),
+            EquationError::IncorrectNumberOfVoltageSources(ref s) => s,
+        }
+    }
+
+    fn cause(&self) -> Option<&std::error::Error> {
+        match *self {
+            EquationError::Unsolvable(ref err) => Some(err),
+            EquationError::IncorrectNumberOfVoltageSources(_) => None,
+        }
+    }
+}
+
+impl From<rulinalg::error::Error> for EquationError {
+    fn from(err: rulinalg::error::Error) -> EquationError {
+        EquationError::Unsolvable(err)
     }
 }
 
@@ -189,10 +257,10 @@ mod tests {
 
         let equation = builder.build().unwrap();
 
-        let solution = equation.solve();
+        let solution = equation.solve().unwrap();
 
-        let expected_solution = vector![100.0];
-        assert_vector_eq!(solution, expected_solution);
+        let expected_voltages = vec![0.0, 100.0];
+        assert_eq!(solution.voltages(), expected_voltages);
     }
 
     #[test]
@@ -203,10 +271,12 @@ mod tests {
 
         let equation = builder.build().unwrap();
 
-        let solution = equation.solve();
+        let solution = equation.solve().unwrap();
 
-        let expected_solution = vector![10.0, 1.0];
-        assert_vector_eq!(solution, expected_solution);
+        let expected_voltages = vec![0.0, 10.0];
+        let expected_currents = vec![1.0];
+        assert_eq!(solution.voltages(), expected_voltages);
+        assert_eq!(solution.currents(), expected_currents);
     }
 
     #[test]
@@ -218,9 +288,11 @@ mod tests {
 
         let equation = builder.build().unwrap();
 
-        let solution = equation.solve();
+        let solution = equation.solve().unwrap();
 
-        let expected_solution = vector![100.0, 100.0, 1.0];
-        assert_vector_eq!(solution, expected_solution);
+        let expected_voltages = vec![0.0, 100.0, 100.0];
+        let expected_currents = vec![1.0];
+        assert_eq!(solution.voltages(), expected_voltages);
+        assert_eq!(solution.currents(), expected_currents);
     }
 }
