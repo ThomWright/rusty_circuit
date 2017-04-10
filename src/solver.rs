@@ -1,14 +1,22 @@
 use specs;
-use elements::*;
-use elements::resistor::*;
-use elements::voltage_source::*;
-use equation::EquationBuilder;
+use elements::Nodes;
+use elements::CalculatedCurrents;
+use elements::resistor::Resistance;
+use elements::voltage_source::Voltage;
+use equation;
 
+#[derive(Debug, Clone, Copy)]
 pub struct System {}
 
 impl System {
     pub fn new() -> Self {
         System {}
+    }
+}
+
+impl Default for System {
+    fn default() -> Self {
+        System::new()
     }
 }
 
@@ -24,20 +32,20 @@ impl specs::System<super::Delta> for System {
 
         let num_nodes: usize = match (&nodes,)
             .join()
-            .flat_map(|(ref ns,)| ns.ids.iter())
+            .flat_map(|(ns,)| ns.ids.iter())
             .max() {
             Some(num) => num + 1,
             None => 0,
         };
         let num_calculated_currents: usize =
-            (&calculated_currents,).join().map(|(ref ccs,)| ccs.num()).sum();
+            (&calculated_currents,).join().map(|(ccs,)| ccs.num()).sum();
 
-        let mut equation_builder = EquationBuilder::new(num_nodes, num_calculated_currents);
+        let mut equation_builder = equation::Builder::new(num_nodes, num_calculated_currents);
 
-        for (&Resistance(resistance), ref ns) in (&resistances, &nodes).join() {
+        for (&Resistance(resistance), ns) in (&resistances, &nodes).join() {
             equation_builder.stamp_resistor(resistance, ns.ids[0], ns.ids[1]);
         }
-        for (i, (&Voltage(voltage), ref ns)) in (&voltages, &nodes).join().enumerate() {
+        for (i, (&Voltage(voltage), ns)) in (&voltages, &nodes).join().enumerate() {
             equation_builder.stamp_voltage_source(voltage, ns.ids[0], ns.ids[1], i);
         }
 
@@ -47,13 +55,13 @@ impl specs::System<super::Delta> for System {
 
             for (ref mut ns,) in (&mut nodes,).join() {
                 ns.voltages.clear();
-                for &id in ns.ids.iter() {
+                for &id in &ns.ids {
                     ns.voltages.push(voltages[id]);
                 }
             }
             for (ref mut ccs,) in (&mut calculated_currents,).join() {
                 ccs.currents.clear();
-                for &id in ccs.ids.iter() {
+                for &id in &ccs.ids {
                     ccs.currents.push(currents[id]);
                 }
             }
@@ -67,6 +75,11 @@ impl specs::System<super::Delta> for System {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use elements::CircuitElement;
+    use elements::resistor;
+    use elements::resistor::Resistor;
+    use elements::voltage_source;
+    use elements::voltage_source::VoltageSource;
 
     #[test]
     fn testicles() {
@@ -89,8 +102,8 @@ mod tests {
         // Create a couple of circuit elements
         let (resistor, voltage_source) = {
             let mut world = planner.mut_world();
-            let resistor = create_resistor(world);
-            let voltage_source = create_voltage_source(world);
+            let resistor = resistor::create(world);
+            let voltage_source = voltage_source::create(world);
             (resistor, voltage_source)
         };
 

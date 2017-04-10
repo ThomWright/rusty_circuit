@@ -3,6 +3,7 @@ use specs;
 pub mod resistor;
 pub mod voltage_source;
 
+#[derive(Debug, Clone, Copy)]
 pub struct CircuitElement {
     pub display_name: &'static str,
 }
@@ -35,6 +36,7 @@ impl specs::Component for Nodes {
     type Storage = specs::VecStorage<Nodes>;
 }
 
+#[derive(Debug, Clone)]
 pub struct CalculatedCurrents {
     pub ids: Vec<usize>,
     pub currents: Vec<f64>,

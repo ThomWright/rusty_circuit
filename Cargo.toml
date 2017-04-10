@@ -2,7 +2,17 @@
 name = "circuit"
 version = "0.1.0"
 authors = ["Thom Wright <github@thomwright.co.uk>"]
+repository = "https://github.com/ThomWright/rusty_circuit"
+homepage = "https://github.com/ThomWright/rusty_circuit"
+license = "MIT"
+readme = "README.md"
+description = "Electronic circuit simulator"
 
 [dependencies]
 rulinalg = "0.4.2"
 specs = "0.8.1"
+clippy = {version = "0.0.122", optional = true}
+
+[features]
+default = []
+dev = ["clippy"]

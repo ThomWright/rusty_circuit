@@ -27,7 +27,7 @@ impl Solution {
 }
 
 impl Equation {
-    pub fn solve(self) -> Result<Solution, EquationError> {
+    pub fn solve(self) -> Result<Solution, Error> {
         let lu = PartialPivLu::decompose(self.nodal_admittances)?;
         let solution = lu.solve(self.inputs)?;
 
@@ -45,7 +45,8 @@ impl Equation {
     }
 }
 
-pub struct EquationBuilder {
+#[derive(Debug)]
+pub struct Builder {
     nodal_admittances: Matrix<f64>,
     inputs: Vector<f64>,
 
@@ -54,10 +55,10 @@ pub struct EquationBuilder {
     voltage_sources_stamped: usize,
 }
 
-impl EquationBuilder {
+impl Builder {
     pub fn new(nodes: usize, voltage_sources: usize) -> Self {
         let size = nodes + voltage_sources - 1;
-        EquationBuilder {
+        Builder {
             nodal_admittances: Matrix::<f64>::zeros(size, size),
             inputs: Vector::<f64>::zeros(size),
 
@@ -127,9 +128,9 @@ impl EquationBuilder {
         self
     }
 
-    pub fn build(self) -> Result<Equation, EquationError> {
+    pub fn build(self) -> Result<Equation, Error> {
         if self.voltage_sources != self.voltage_sources_stamped {
-            return Err(EquationError::IncorrectNumberOfVoltageSources(
+            return Err(Error::IncorrectNumberOfVoltageSources(
                 format!("Expected {} voltage sources, stamped {}",
                                self.voltage_sources,
                                self.voltage_sources_stamped).to_owned()));
@@ -143,39 +144,39 @@ impl EquationBuilder {
 }
 
 #[derive(Debug)]
-pub enum EquationError {
+pub enum Error {
     IncorrectNumberOfVoltageSources(String),
     Unsolvable(rulinalg::error::Error),
 }
 
-impl std::fmt::Display for EquationError {
+impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match *self {
-            EquationError::Unsolvable(ref err) => write!(f, "{}", err),
-            EquationError::IncorrectNumberOfVoltageSources(ref s) => write!(f, "{}", s),
+            Error::Unsolvable(ref err) => write!(f, "{}", err),
+            Error::IncorrectNumberOfVoltageSources(ref s) => write!(f, "{}", s),
         }
     }
 }
 
-impl std::error::Error for EquationError {
+impl std::error::Error for Error {
     fn description(&self) -> &str {
         match *self {
-            EquationError::Unsolvable(ref err) => err.description(),
-            EquationError::IncorrectNumberOfVoltageSources(ref s) => s,
+            Error::Unsolvable(ref err) => err.description(),
+            Error::IncorrectNumberOfVoltageSources(ref s) => s,
         }
     }
 
     fn cause(&self) -> Option<&std::error::Error> {
         match *self {
-            EquationError::Unsolvable(ref err) => Some(err),
-            EquationError::IncorrectNumberOfVoltageSources(_) => None,
+            Error::Unsolvable(ref err) => Some(err),
+            Error::IncorrectNumberOfVoltageSources(_) => None,
         }
     }
 }
 
-impl From<rulinalg::error::Error> for EquationError {
-    fn from(err: rulinalg::error::Error) -> EquationError {
-        EquationError::Unsolvable(err)
+impl From<rulinalg::error::Error> for Error {
+    fn from(err: rulinalg::error::Error) -> Error {
+        Error::Unsolvable(err)
     }
 }
 
@@ -185,7 +186,7 @@ mod tests {
 
     #[test]
     fn stamp_resistor() {
-        let mut builder = EquationBuilder::new(3, 0);
+        let mut builder = Builder::new(3, 0);
         builder.stamp_resistor(5.0, 1, 2);
 
         let equation = builder.build().unwrap();
@@ -198,7 +199,7 @@ mod tests {
 
     #[test]
     fn stamp_two_resistors() {
-        let mut builder = EquationBuilder::new(3, 0);
+        let mut builder = Builder::new(3, 0);
         builder.stamp_resistor(5.0, 1, 2);
         builder.stamp_resistor(5.0, 0, 2);
 
@@ -212,7 +213,7 @@ mod tests {
 
     #[test]
     fn stamp_voltage_source() {
-        let mut builder = EquationBuilder::new(3, 1);
+        let mut builder = Builder::new(3, 1);
         builder.stamp_voltage_source(5.0, 1, 2, 0);
 
         let equation = builder.build().unwrap();
@@ -230,7 +231,7 @@ mod tests {
 
     #[test]
     fn stamp_current_source() {
-        let mut builder = EquationBuilder::new(3, 0);
+        let mut builder = Builder::new(3, 0);
         builder.stamp_current_source(5.0, 1, 2);
 
         let equation = builder.build().unwrap();
@@ -241,7 +242,7 @@ mod tests {
 
     #[test]
     fn stamp_too_many_voltage_sources() {
-        let mut builder = EquationBuilder::new(3, 0);
+        let mut builder = Builder::new(3, 0);
         builder.stamp_voltage_source(5.0, 1, 2, 0);
 
         let builder_result = builder.build();
@@ -251,7 +252,7 @@ mod tests {
 
     #[test]
     fn solve_simple_circuit() {
-        let mut builder = EquationBuilder::new(2, 0);
+        let mut builder = Builder::new(2, 0);
         builder.stamp_current_source(1.0, 0, 1);
         builder.stamp_resistor(100.0, 1, 0);
 
@@ -265,7 +266,7 @@ mod tests {
 
     #[test]
     fn solve_simple_circuit_with_voltage_source() {
-        let mut builder = EquationBuilder::new(2, 1);
+        let mut builder = Builder::new(2, 1);
         builder.stamp_voltage_source(10.0, 0, 1, 0);
         builder.stamp_resistor(10.0, 1, 0);
 
@@ -281,7 +282,7 @@ mod tests {
 
     #[test]
     fn solve_simple_circuit_with_wire() {
-        let mut builder = EquationBuilder::new(3, 1);
+        let mut builder = Builder::new(3, 1);
         builder.stamp_current_source(1.0, 0, 1);
         builder.stamp_voltage_source(0.0, 1, 2, 0);
         builder.stamp_resistor(100.0, 2, 0);
