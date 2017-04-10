@@ -5,3 +5,4 @@ authors = ["Thom Wright <github@thomwright.co.uk>"]
 
 [dependencies]
 rulinalg = "0.4.2"
+specs = "0.8.1"
