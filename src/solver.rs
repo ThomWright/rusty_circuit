@@ -1,8 +1,8 @@
 use specs;
 use elements::Nodes;
-use elements::CalculatedCurrents;
+use elements::CalculatedCurrent;
 use elements::resistor::Resistance;
-use elements::voltage_source::Voltage;
+use elements::voltage_source::VoltageInput;
 use equation;
 
 #[derive(Debug, Clone, Copy)]
@@ -23,11 +23,11 @@ impl Default for System {
 impl specs::System<super::Delta> for System {
     fn run(&mut self, arg: specs::RunArg, _: super::Delta) {
         use specs::Join;
-        let (mut nodes, mut calculated_currents, resistances, voltages) = arg.fetch(|w| {
+        let (mut nodes, mut calc_currents, resistances, v_inputs) = arg.fetch(|w| {
             (w.write::<Nodes>(),
-             w.write::<CalculatedCurrents>(),
+             w.write::<CalculatedCurrent>(),
              w.read::<Resistance>(),
-             w.read::<Voltage>())
+             w.read::<VoltageInput>())
         });
 
         let num_nodes: usize = match (&nodes,)
@@ -37,16 +37,18 @@ impl specs::System<super::Delta> for System {
             Some(num) => num + 1,
             None => 0,
         };
-        let num_calculated_currents: usize =
-            (&calculated_currents,).join().map(|(ccs,)| ccs.num()).sum();
+        let num_v_inputs: usize = (&v_inputs,).join().count();
 
-        let mut equation_builder = equation::Builder::new(num_nodes, num_calculated_currents);
+        let mut equation_builder = equation::Builder::new(num_nodes, num_v_inputs);
 
         for (&Resistance(resistance), ns) in (&resistances, &nodes).join() {
             equation_builder.stamp_resistor(resistance, ns.ids[0], ns.ids[1]);
         }
-        for (i, (&Voltage(voltage), ns)) in (&voltages, &nodes).join().enumerate() {
-            equation_builder.stamp_voltage_source(voltage, ns.ids[0], ns.ids[1], i);
+        for (voltage_input, ns) in (&v_inputs, &nodes).join() {
+            equation_builder.stamp_voltage_source(voltage_input.voltage,
+                                                  ns.ids[0],
+                                                  ns.ids[1],
+                                                  voltage_input.id);
         }
 
         if let Ok(solution) = equation_builder.build().and_then(|equation| equation.solve()) {
@@ -59,11 +61,8 @@ impl specs::System<super::Delta> for System {
                     ns.voltages.push(voltages[id]);
                 }
             }
-            for (ref mut ccs,) in (&mut calculated_currents,).join() {
-                ccs.currents.clear();
-                for &id in &ccs.ids {
-                    ccs.currents.push(currents[id]);
-                }
+            for (ref v_input, ref mut current) in (&v_inputs, &mut calc_currents).join() {
+                current.0 = currents[v_input.id];
             }
         } else {
             // oh no
@@ -91,11 +90,11 @@ mod tests {
             let mut world = specs::World::new();
             world.register::<CircuitElement>();
             world.register::<Nodes>();
-            world.register::<CalculatedCurrents>();
+            world.register::<CalculatedCurrent>();
             world.register::<Resistor>();
             world.register::<Resistance>();
             world.register::<VoltageSource>();
-            world.register::<Voltage>();
+            world.register::<VoltageInput>();
 
             specs::Planner::with_num_threads(world, 1)
         };
@@ -131,15 +130,14 @@ mod tests {
             }
         }
 
-        // Assign voltage source IDs
+        // Assign voltage source ID
         {
             let world = planner.mut_world();
-            let mut calc_currents = world.write::<CalculatedCurrents>().pass();
+            let mut v_inputs = world.write::<VoltageInput>().pass();
 
-            match calc_currents.get_mut(voltage_source) {
-                Some(ref mut cc) => {
-                    cc.ids.clear();
-                    cc.ids.push(0);
+            match v_inputs.get_mut(voltage_source) {
+                Some(ref mut v_input) => {
+                    v_input.id = 0;
                 }
                 None => panic!("oh no"),
             }
@@ -170,10 +168,10 @@ mod tests {
 
         let expected_current = elements::voltage_source::DEFAULT_VOLTAGE /
                                elements::resistor::DEFAULT_RESISTANCE;
-        let currents = world.read::<CalculatedCurrents>().pass();
+        let currents = world.read::<CalculatedCurrent>().pass();
         match currents.get(voltage_source) {
-            Some(ref voltage_source_current) => {
-                assert_eq!(voltage_source_current.currents[0], expected_current);
+            Some(ref current) => {
+                assert_eq!(current.0, expected_current);
             }
             None => panic!("oh no"),
         }

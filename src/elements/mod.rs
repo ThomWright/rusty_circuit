@@ -36,25 +36,8 @@ impl specs::Component for Nodes {
     type Storage = specs::VecStorage<Nodes>;
 }
 
-#[derive(Debug, Clone)]
-pub struct CalculatedCurrents {
-    pub ids: Vec<usize>,
-    pub currents: Vec<f64>,
-    num: usize,
-}
-impl CalculatedCurrents {
-    pub fn new(num: usize) -> Self {
-        CalculatedCurrents {
-            ids: Vec::with_capacity(2),
-            currents: Vec::with_capacity(2),
-            num: num,
-        }
-    }
-
-    pub fn num(&self) -> usize {
-        self.num
-    }
-}
-impl specs::Component for CalculatedCurrents {
-    type Storage = specs::HashMapStorage<CalculatedCurrents>;
+#[derive(Debug, Clone, Copy)]
+pub struct CalculatedCurrent(pub f64);
+impl specs::Component for CalculatedCurrent {
+    type Storage = specs::HashMapStorage<CalculatedCurrent>;
 }
