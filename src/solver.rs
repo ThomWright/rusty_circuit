@@ -75,6 +75,7 @@ impl specs::System<super::Delta> for System {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use elements;
     use elements::CircuitElement;
     use elements::resistor;
     use elements::resistor::Resistor;
@@ -130,6 +131,20 @@ mod tests {
             }
         }
 
+        // Assign voltage source IDs
+        {
+            let world = planner.mut_world();
+            let mut calc_currents = world.write::<CalculatedCurrents>().pass();
+
+            match calc_currents.get_mut(voltage_source) {
+                Some(ref mut cc) => {
+                    cc.ids.clear();
+                    cc.ids.push(0);
+                }
+                None => panic!("oh no"),
+            }
+        }
+
         // Run the solver
         planner.add_system(System::new(), "solver", 10);
         planner.dispatch(0.0);
@@ -149,6 +164,16 @@ mod tests {
             Some(ref voltage_source_nodes) => {
                 assert_eq!(voltage_source_nodes.voltages[0], 0f64);
                 assert_eq!(voltage_source_nodes.voltages[1], 5f64);
+            }
+            None => panic!("oh no"),
+        }
+
+        let expected_current = elements::voltage_source::DEFAULT_VOLTAGE /
+                               elements::resistor::DEFAULT_RESISTANCE;
+        let currents = world.read::<CalculatedCurrents>().pass();
+        match currents.get(voltage_source) {
+            Some(ref voltage_source_current) => {
+                assert_eq!(voltage_source_current.currents[0], expected_current);
             }
             None => panic!("oh no"),
         }

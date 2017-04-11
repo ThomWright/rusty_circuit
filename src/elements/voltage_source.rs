@@ -4,7 +4,7 @@ use super::Nodes;
 use super::CalculatedCurrents;
 
 pub const NAME: &'static str = "Voltage source";
-const DEFAULT_VOLTAGE: f64 = 5.0;
+pub const DEFAULT_VOLTAGE: f64 = 5.0;
 
 #[derive(Debug, Clone, Copy)]
 pub struct VoltageSource();

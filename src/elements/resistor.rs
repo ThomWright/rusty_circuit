@@ -3,7 +3,7 @@ use super::CircuitElement;
 use super::Nodes;
 
 pub const NAME: &'static str = "Resistor";
-const DEFAULT_RESISTANCE: f64 = 1000.0;
+pub const DEFAULT_RESISTANCE: f64 = 1000.0;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Resistor();
