@@ -83,7 +83,7 @@ mod tests {
     use elements::voltage_source::VoltageSource;
 
     #[test]
-    fn testicles() {
+    fn simple_circuit() {
         use specs::Gate;
 
         // Set up world
