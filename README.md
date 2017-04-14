@@ -8,9 +8,11 @@ An electronic circuit simulator, written using an [ECS](https://en.wikipedia.org
 
 ## TODO
 
-- [x] Simple voltage source and resistor circuit solutions
+- [x] Non-linear, time-invariant circuit solver
 - [ ] Circuit elements
-    - [ ] Current source
+    - [x] Resistor
+    - [x] Voltage source
+    - [x] Current source
     - [ ] Wire
     - [ ] Ground
 - [ ] Transient analysis
