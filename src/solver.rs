@@ -65,8 +65,9 @@ impl specs::System<super::Delta> for System {
                     node.voltage = voltages[node.index];
                 }
             }
-            for (ref v_input, ref mut current) in (&v_inputs, &mut calc_currents).join() {
-                current.0 = currents[v_input.index];
+            for (ref v_input, &mut CalculatedCurrent(ref mut current)) in
+                (&v_inputs, &mut calc_currents).join() {
+                *current = currents[v_input.index];
             }
         } else {
             // oh no
