@@ -2,6 +2,7 @@ use specs;
 
 pub mod resistor;
 pub mod voltage_source;
+pub mod current_source;
 
 #[derive(Debug, Clone, Copy)]
 pub struct CircuitElement {
