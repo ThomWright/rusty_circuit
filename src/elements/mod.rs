@@ -11,25 +11,31 @@ impl specs::Component for CircuitElement {
     type Storage = specs::VecStorage<CircuitElement>;
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct Node {
+    pub index: usize,
+    pub voltage: f64,
+}
+impl Default for Node {
+    fn default() -> Self {
+        Node {
+            index: 0,
+            voltage: 0f64,
+        }
+    }
+}
+
 // TODO Make more specialised Node components? e.g. TwoNodeDirectional?
 // Better type safety not indexing vectors directly.
 #[derive(Debug)]
-pub struct Nodes {
-    pub ids: Vec<usize>,
-    pub voltages: Vec<f64>,
-    num: usize,
-}
+pub struct Nodes(pub Vec<Node>);
 impl Nodes {
     pub fn new(num: usize) -> Self {
-        Nodes {
-            ids: Vec::with_capacity(2),
-            voltages: Vec::with_capacity(2),
-            num: num,
+        let mut nodes = Vec::new();
+        for _ in 0..num {
+            nodes.push(Node::default())
         }
-    }
-
-    pub fn num(&self) -> usize {
-        self.num
+        Nodes(nodes)
     }
 }
 impl specs::Component for Nodes {

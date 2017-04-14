@@ -32,37 +32,36 @@ impl specs::System<super::Delta> for System {
 
         let num_nodes: usize = match (&nodes,)
             .join()
-            .flat_map(|(ns,)| ns.ids.iter())
-            .max() {
-            Some(num) => num + 1,
+            .flat_map(|(&Nodes(ref ns),)| ns.iter())
+            .max_by(|n1, n2| n1.index.cmp(&n2.index)) {
+            Some(node) => node.index + 1,
             None => 0,
         };
         let num_v_inputs: usize = (&v_inputs,).join().count();
 
         let mut equation_builder = equation::Builder::new(num_nodes, num_v_inputs);
 
-        for (&Resistance(resistance), ns) in (&resistances, &nodes).join() {
-            equation_builder.stamp_resistor(resistance, ns.ids[0], ns.ids[1]);
+        for (&Resistance(resistance), &Nodes(ref ns)) in (&resistances, &nodes).join() {
+            equation_builder.stamp_resistor(resistance, ns[0].index, ns[1].index);
         }
         for (voltage_input, ns) in (&v_inputs, &nodes).join() {
             equation_builder.stamp_voltage_source(voltage_input.voltage,
-                                                  ns.ids[0],
-                                                  ns.ids[1],
-                                                  voltage_input.id);
+                                                  ns.0[0].index,
+                                                  ns.0[1].index,
+                                                  voltage_input.index);
         }
 
         if let Ok(solution) = equation_builder.build().and_then(|equation| equation.solve()) {
             let voltages = solution.voltages();
             let currents = solution.currents();
 
-            for (ref mut ns,) in (&mut nodes,).join() {
-                ns.voltages.clear();
-                for &id in &ns.ids {
-                    ns.voltages.push(voltages[id]);
+            for (&mut Nodes(ref mut ns),) in (&mut nodes,).join() {
+                for ref mut node in ns.iter_mut() {
+                    node.voltage = voltages[node.index];
                 }
             }
             for (ref v_input, ref mut current) in (&v_inputs, &mut calc_currents).join() {
-                current.0 = currents[v_input.id];
+                current.0 = currents[v_input.index];
             }
         } else {
             // oh no
@@ -113,18 +112,16 @@ mod tests {
             let mut nodes = world.write::<Nodes>().pass();
 
             match nodes.get_mut(voltage_source) {
-                Some(ref mut voltage_source_nodes) => {
-                    voltage_source_nodes.ids.clear();
-                    voltage_source_nodes.ids.push(0);
-                    voltage_source_nodes.ids.push(1);
+                Some(&mut Nodes(ref mut voltage_source_nodes)) => {
+                    voltage_source_nodes[0].index = 0;
+                    voltage_source_nodes[1].index = 1;
                 }
                 None => panic!("oh no"),
             }
             match nodes.get_mut(resistor) {
-                Some(ref mut resistor_nodes) => {
-                    resistor_nodes.ids.clear();
-                    resistor_nodes.ids.push(0);
-                    resistor_nodes.ids.push(1);
+                Some(&mut Nodes(ref mut resistor_nodes)) => {
+                    resistor_nodes[0].index = 0;
+                    resistor_nodes[1].index = 1;
                 }
                 None => panic!("oh no"),
             }
@@ -137,7 +134,7 @@ mod tests {
 
             match v_inputs.get_mut(voltage_source) {
                 Some(ref mut v_input) => {
-                    v_input.id = 0;
+                    v_input.index = 0;
                 }
                 None => panic!("oh no"),
             }
@@ -152,16 +149,16 @@ mod tests {
         let world = planner.mut_world();
         let nodes = world.read::<Nodes>().pass();
         match nodes.get(resistor) {
-            Some(ref resistor_nodes) => {
-                assert_eq!(resistor_nodes.voltages[0], 0f64);
-                assert_eq!(resistor_nodes.voltages[1], 5f64);
+            Some(&Nodes(ref resistor_nodes)) => {
+                assert_eq!(resistor_nodes[0].voltage, 0f64);
+                assert_eq!(resistor_nodes[1].voltage, 5f64);
             }
             None => panic!("oh no"),
         }
         match nodes.get(voltage_source) {
-            Some(ref voltage_source_nodes) => {
-                assert_eq!(voltage_source_nodes.voltages[0], 0f64);
-                assert_eq!(voltage_source_nodes.voltages[1], 5f64);
+            Some(&Nodes(ref voltage_source_nodes)) => {
+                assert_eq!(voltage_source_nodes[0].voltage, 0f64);
+                assert_eq!(voltage_source_nodes[1].voltage, 5f64);
             }
             None => panic!("oh no"),
         }
@@ -170,8 +167,8 @@ mod tests {
                                elements::resistor::DEFAULT_RESISTANCE;
         let currents = world.read::<CalculatedCurrent>().pass();
         match currents.get(voltage_source) {
-            Some(ref current) => {
-                assert_eq!(current.0, expected_current);
+            Some(&CalculatedCurrent(current)) => {
+                assert_eq!(current, expected_current);
             }
             None => panic!("oh no"),
         }
