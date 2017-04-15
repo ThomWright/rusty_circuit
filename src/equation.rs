@@ -5,13 +5,6 @@ use rulinalg::matrix::decomposition::PartialPivLu;
 use rulinalg::vector::Vector;
 
 #[derive(Debug)]
-pub struct Equation {
-    nodes: usize,
-    nodal_admittances: Matrix<f64>,
-    inputs: Vector<f64>,
-}
-
-#[derive(Debug)]
 pub struct Solution {
     voltages: Vec<f64>,
     currents: Vec<f64>,
@@ -24,6 +17,13 @@ impl Solution {
     pub fn currents(&self) -> Vec<f64> {
         self.currents.to_owned()
     }
+}
+
+#[derive(Debug)]
+pub struct Equation {
+    nodes: usize,
+    nodal_admittances: Matrix<f64>,
+    inputs: Vector<f64>,
 }
 
 impl Equation {
@@ -237,7 +237,7 @@ mod tests {
         let equation = builder.build().unwrap();
 
         let expected_inputs = vector![-5.0, 5.0];
-        assert_vector_eq!(equation.inputs, expected_inputs)
+        assert_vector_eq!(equation.inputs, expected_inputs);
     }
 
     #[test]
@@ -247,7 +247,7 @@ mod tests {
 
         let builder_result = builder.build();
 
-        assert!(builder_result.is_err())
+        assert!(builder_result.is_err());
     }
 
     #[test]

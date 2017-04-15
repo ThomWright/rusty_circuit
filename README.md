@@ -13,7 +13,7 @@ An electronic circuit simulator, written using an [ECS](https://en.wikipedia.org
     - [x] Resistor
     - [x] Voltage source
     - [x] Current source
-    - [ ] Wire
+    - [x] Wire
     - [ ] Ground
 - [ ] Transient analysis
     - [ ] Capacitors

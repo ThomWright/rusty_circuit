@@ -17,12 +17,17 @@ pub struct VoltageInput {
     pub voltage: f64,
     pub index: usize,
 }
-impl Default for VoltageInput {
-    fn default() -> Self {
+impl VoltageInput {
+    pub fn new(voltage: f64) -> Self {
         VoltageInput {
-            voltage: DEFAULT_VOLTAGE,
+            voltage: voltage,
             index: 0,
         }
+    }
+}
+impl Default for VoltageInput {
+    fn default() -> Self {
+        VoltageInput::new(DEFAULT_VOLTAGE)
     }
 }
 impl specs::Component for VoltageInput {
@@ -35,6 +40,6 @@ pub fn create(world: &mut specs::World) -> specs::Entity {
         .with(VoltageSource {})
         .with(Nodes::new(2))
         .with(VoltageInput::default())
-        .with(CalculatedCurrent(0f64))
+        .with(CalculatedCurrent::default())
         .build()
 }

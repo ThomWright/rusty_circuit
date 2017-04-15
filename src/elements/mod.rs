@@ -3,6 +3,7 @@ use specs;
 pub mod resistor;
 pub mod voltage_source;
 pub mod current_source;
+pub mod wire;
 
 #[derive(Debug, Clone, Copy)]
 pub struct CircuitElement {
@@ -47,4 +48,10 @@ impl specs::Component for Nodes {
 pub struct CalculatedCurrent(pub f64);
 impl specs::Component for CalculatedCurrent {
     type Storage = specs::HashMapStorage<CalculatedCurrent>;
+}
+
+impl Default for CalculatedCurrent {
+    fn default() -> Self {
+        CalculatedCurrent(0f64)
+    }
 }

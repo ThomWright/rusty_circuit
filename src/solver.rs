@@ -32,6 +32,7 @@ impl specs::System<super::Delta> for System {
              w.read::<CurrentInput>())
         });
 
+        // calculate basic circuit properties
         let num_nodes: usize = match (&nodes,)
             .join()
             .flat_map(|(&Nodes(ref ns),)| ns.iter())
@@ -43,6 +44,7 @@ impl specs::System<super::Delta> for System {
 
         let mut equation_builder = equation::Builder::new(num_nodes, num_v_inputs);
 
+        // stamp circuit elements into the equation
         for (&Resistance(resistance), &Nodes(ref ns)) in (&resistances, &nodes).join() {
             equation_builder.stamp_resistor(resistance, ns[0].index, ns[1].index);
         }
@@ -56,22 +58,24 @@ impl specs::System<super::Delta> for System {
             equation_builder.stamp_current_source(current, ns[0].index, ns[1].index);
         }
 
-        if let Ok(solution) = equation_builder.build().and_then(|equation| equation.solve()) {
-            let voltages = solution.voltages();
-            let currents = solution.currents();
+        // solve
+        match equation_builder.build().and_then(|equation| equation.solve()) {
+            Ok(solution) => {
+                let voltages = solution.voltages();
+                let currents = solution.currents();
 
-            for (&mut Nodes(ref mut ns),) in (&mut nodes,).join() {
-                for ref mut node in ns.iter_mut() {
-                    node.voltage = voltages[node.index];
+                // update circuit element states
+                for (&mut Nodes(ref mut ns),) in (&mut nodes,).join() {
+                    for ref mut node in ns.iter_mut() {
+                        node.voltage = voltages[node.index];
+                    }
+                }
+                for (v_input, &mut CalculatedCurrent(ref mut current)) in
+                    (&v_inputs, &mut calc_currents).join() {
+                    *current = currents[v_input.index];
                 }
             }
-            for (v_input, &mut CalculatedCurrent(ref mut current)) in
-                (&v_inputs, &mut calc_currents).join() {
-                *current = currents[v_input.index];
-            }
-        } else {
-            // oh no
-            panic!("sadface")
+            Err(error) => println!("Unsolvable circuit: {}", error),
         }
     }
 }
@@ -81,7 +85,7 @@ mod tests {
     use specs;
 
     #[test]
-    fn simple_resistor_vsource_circuit() {
+    fn simple_resistor_voltage_source_circuit() {
         use specs::Gate;
 
         use super::System;
@@ -171,7 +175,126 @@ mod tests {
     }
 
     #[test]
-    fn simple_resistor_csource_circuit() {
+    fn simple_resistor_voltage_source_circuit_with_wires() {
+        use specs::Gate;
+
+        use super::System;
+        use elements::Nodes;
+        use elements::CalculatedCurrent;
+        use elements::resistor;
+        use elements::wire;
+        use elements::voltage_source;
+        use elements::voltage_source::VoltageInput;
+
+        // Set up world
+        let mut planner = create_planner();
+
+        // Create a couple of circuit elements
+        let (resistor, voltage_source, wire1, wire2) = {
+            let mut world = planner.mut_world();
+            let resistor = resistor::create(world);
+            let voltage_source = voltage_source::create(world);
+            let wire1 = wire::create(world);
+            let wire2 = wire::create(world);
+            (resistor, voltage_source, wire1, wire2)
+        };
+
+        // Assign node IDs
+        {
+            let world = planner.mut_world();
+            let mut nodes = world.write::<Nodes>().pass();
+
+            match nodes.get_mut(voltage_source) {
+                Some(&mut Nodes(ref mut voltage_source_nodes)) => {
+                    voltage_source_nodes[0].index = 0;
+                    voltage_source_nodes[1].index = 1;
+                }
+                None => panic!("oh no"),
+            }
+            match nodes.get_mut(resistor) {
+                Some(&mut Nodes(ref mut resistor_nodes)) => {
+                    resistor_nodes[0].index = 3;
+                    resistor_nodes[1].index = 2;
+                }
+                None => panic!("oh no"),
+            }
+            match nodes.get_mut(wire1) {
+                Some(&mut Nodes(ref mut wire1_nodes)) => {
+                    wire1_nodes[0].index = 1;
+                    wire1_nodes[1].index = 2;
+                }
+                None => panic!("oh no"),
+            }
+            match nodes.get_mut(wire2) {
+                Some(&mut Nodes(ref mut wire2_nodes)) => {
+                    wire2_nodes[0].index = 3;
+                    wire2_nodes[1].index = 0;
+                }
+                None => panic!("oh no"),
+            }
+        }
+
+        // Assign voltage source IDs
+        {
+            use specs::Join;
+            let world = planner.mut_world();
+            let mut v_inputs = world.write::<VoltageInput>().pass();
+
+            let mut i = 0;
+            for (ref mut vi,) in (&mut v_inputs,).join() {
+                vi.index = i;
+                i += 1;
+            }
+        }
+
+        // Run the solver
+        planner.add_system(System::new(), "solver", 10);
+        planner.dispatch(0.0);
+        planner.wait();
+
+        // Assert the circuit elements have the correct state
+        let expected_voltage = voltage_source::DEFAULT_VOLTAGE;
+        let world = planner.mut_world();
+        let nodes = world.read::<Nodes>().pass();
+        match nodes.get(resistor) {
+            Some(&Nodes(ref resistor_nodes)) => {
+                assert_eq!(resistor_nodes[0].voltage, 0f64);
+                assert_eq!(resistor_nodes[1].voltage, expected_voltage);
+            }
+            None => panic!("oh no"),
+        }
+        match nodes.get(voltage_source) {
+            Some(&Nodes(ref voltage_source_nodes)) => {
+                assert_eq!(voltage_source_nodes[0].voltage, 0f64);
+                assert_eq!(voltage_source_nodes[1].voltage, expected_voltage);
+            }
+            None => panic!("oh no"),
+        }
+
+        let expected_current = voltage_source::DEFAULT_VOLTAGE / resistor::DEFAULT_RESISTANCE;
+        let currents = world.read::<CalculatedCurrent>().pass();
+        match currents.get(voltage_source) {
+            Some(&CalculatedCurrent(current)) => {
+                assert_eq!(current, expected_current);
+            }
+            None => panic!("oh no"),
+        }
+        match currents.get(wire1) {
+            Some(&CalculatedCurrent(current)) => {
+                assert_eq!(current, expected_current);
+            }
+            None => panic!("oh no"),
+        }
+        match currents.get(wire2) {
+            Some(&CalculatedCurrent(current)) => {
+                assert_eq!(current, expected_current);
+            }
+            None => panic!("oh no"),
+        }
+    }
+
+    #[test]
+    fn simple_resistor_current_source_circuit() {
         use specs::Gate;
 
         use super::System;
@@ -240,6 +363,7 @@ mod tests {
         use elements::Nodes;
         use elements::CalculatedCurrent;
         use elements::CircuitElement;
+        use elements::wire::Wire;
         use elements::resistor::Resistance;
         use elements::resistor::Resistor;
         use elements::voltage_source::VoltageInput;
@@ -251,6 +375,7 @@ mod tests {
         world.register::<CircuitElement>();
         world.register::<Nodes>();
         world.register::<CalculatedCurrent>();
+        world.register::<Wire>();
         world.register::<Resistor>();
         world.register::<Resistance>();
         world.register::<VoltageSource>();
