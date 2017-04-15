@@ -4,6 +4,7 @@ pub mod resistor;
 pub mod voltage_source;
 pub mod current_source;
 pub mod wire;
+pub mod ground;
 
 #[derive(Debug, Clone, Copy)]
 pub struct CircuitElement {

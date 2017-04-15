@@ -1,4 +1,5 @@
 use std;
+use std::fmt;
 use rulinalg;
 use rulinalg::matrix::Matrix;
 use rulinalg::matrix::decomposition::PartialPivLu;
@@ -42,6 +43,21 @@ impl Equation {
             voltages: vs,
             currents: currents.to_vec(),
         })
+    }
+}
+
+impl fmt::Display for Equation {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f,
+               "
+Number of nodes: {}
+Nodal admittances:
+{}
+Inputs:
+{}",
+               self.nodes,
+               self.nodal_admittances,
+               self.inputs)
     }
 }
 
