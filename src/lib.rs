@@ -19,7 +19,6 @@ extern crate rulinalg;
 
 extern crate specs;
 
-pub mod equation;
 pub mod elements;
 pub mod solver;
 
