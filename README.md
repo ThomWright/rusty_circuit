@@ -21,3 +21,11 @@ An electronic circuit simulator, written using an [ECS](https://en.wikipedia.org
 - [ ] Time-varying sources
 - [ ] Assign node IDs based on connector coordinates
 - [ ] Interaction events (create, delete, move)
+
+## Notes on using `specs`
+
+Anything dependent on `Delta` (i.e. in the 'update' phase of a game loop) I'm writing as a `specs::System`, e.g. solving dynamic circuits, controlling time-varying voltage sources.
+
+Anything outside the 'update' phase (e.g. creating a resistor, initialising circuit equation, rendering) I'm writing using `specs::World`/`specs::Planner` directly.
+
+See [Ruga](https://github.com/thiolliere/ruga) as an example.

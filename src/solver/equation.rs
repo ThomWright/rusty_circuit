@@ -12,57 +12,16 @@ pub struct Solution {
 }
 
 impl Solution {
-    pub fn voltages(&self) -> Vec<f64> {
-        self.voltages.to_owned()
+    pub fn voltages(&self) -> &Vec<f64> {
+        &self.voltages
     }
-    pub fn currents(&self) -> Vec<f64> {
-        self.currents.to_owned()
+    pub fn currents(&self) -> &Vec<f64> {
+        &self.currents
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Equation {
-    nodes: usize,
-    nodal_admittances: Matrix<f64>,
-    inputs: Vector<f64>,
-}
-
-impl Equation {
-    pub fn solve(self) -> Result<Solution, Error> {
-        let lu = PartialPivLu::decompose(self.nodal_admittances)?;
-        let solution = lu.solve(self.inputs)?;
-
-        let (voltages, currents) = solution.data()
-            .as_slice()
-            .split_at(self.nodes - 1);
-
-        let mut vs = voltages.to_vec();
-        vs.insert(0, 0.0); // ground node
-
-        Ok(Solution {
-            voltages: vs,
-            currents: currents.to_vec(),
-        })
-    }
-}
-
-impl fmt::Display for Equation {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,
-               "
-Number of nodes: {}
-Nodal admittances:
-{}
-Inputs:
-{}",
-               self.nodes,
-               self.nodal_admittances,
-               self.inputs)
-    }
-}
-
-#[derive(Debug)]
-pub struct Builder {
     nodal_admittances: Matrix<f64>,
     inputs: Vector<f64>,
 
@@ -71,10 +30,10 @@ pub struct Builder {
     voltage_sources_stamped: usize,
 }
 
-impl Builder {
+impl Equation {
     pub fn new(nodes: usize, voltage_sources: usize) -> Self {
         let size = nodes + voltage_sources - 1;
-        Builder {
+        Equation {
             nodal_admittances: Matrix::<f64>::zeros(size, size),
             inputs: Vector::<f64>::zeros(size),
 
@@ -144,18 +103,51 @@ impl Builder {
         self
     }
 
-    pub fn build(self) -> Result<Equation, Error> {
-        if self.voltage_sources != self.voltage_sources_stamped {
+    fn solve_internal(eq: Equation) -> Result<Solution, Error> {
+        if eq.voltage_sources != eq.voltage_sources_stamped {
             return Err(Error::IncorrectNumberOfVoltageSources(
                 format!("Expected {} voltage sources, stamped {}",
-                               self.voltage_sources,
-                               self.voltage_sources_stamped).to_owned()));
+                               eq.voltage_sources,
+                               eq.voltage_sources_stamped).to_owned()));
         }
-        Ok(Equation {
-            nodes: self.nodes,
-            nodal_admittances: self.nodal_admittances,
-            inputs: self.inputs,
+
+        let lu = PartialPivLu::decompose(eq.nodal_admittances)?;
+        let solution = lu.solve(eq.inputs)?;
+
+        let (voltages, currents) = solution.data()
+            .as_slice()
+            .split_at(eq.nodes - 1);
+
+        let mut vs = voltages.to_vec();
+        vs.insert(0, 0.0); // ground node
+
+        Ok(Solution {
+            voltages: vs,
+            currents: currents.to_vec(),
         })
+    }
+
+    pub fn solve(&self) -> Result<Solution, Error> {
+        Equation::solve_internal(self.clone())
+    }
+}
+
+impl fmt::Display for Equation {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f,
+               "
+Number of nodes: {}
+Expected number of voltage sources: {}
+Voltage sources stamped: {}
+Nodal admittances:
+{}
+Inputs:
+{}",
+               self.voltage_sources,
+               self.voltage_sources_stamped,
+               self.nodes,
+               self.nodal_admittances,
+               self.inputs)
     }
 }
 
@@ -200,12 +192,12 @@ impl From<rulinalg::error::Error> for Error {
 mod tests {
     use super::*;
 
+    use test::Bencher;
+
     #[test]
     fn stamp_resistor() {
-        let mut builder = Builder::new(3, 0);
-        builder.stamp_resistor(5.0, 1, 2);
-
-        let equation = builder.build().unwrap();
+        let mut equation = Equation::new(3, 0);
+        equation.stamp_resistor(5.0, 1, 2);
 
         let expected = matrix![0.2, -0.2;
                                -0.2, 0.2];
@@ -215,11 +207,9 @@ mod tests {
 
     #[test]
     fn stamp_two_resistors() {
-        let mut builder = Builder::new(3, 0);
-        builder.stamp_resistor(5.0, 1, 2);
-        builder.stamp_resistor(5.0, 0, 2);
-
-        let equation = builder.build().unwrap();
+        let mut equation = Equation::new(3, 0);
+        equation.stamp_resistor(5.0, 1, 2);
+        equation.stamp_resistor(5.0, 0, 2);
 
         let expected = matrix![0.2, -0.2;
                                -0.2, 0.4];
@@ -229,10 +219,8 @@ mod tests {
 
     #[test]
     fn stamp_voltage_source() {
-        let mut builder = Builder::new(3, 1);
-        builder.stamp_voltage_source(5.0, 1, 2, 0);
-
-        let equation = builder.build().unwrap();
+        let mut equation = Equation::new(3, 1);
+        equation.stamp_voltage_source(5.0, 1, 2, 0);
 
         let expected_inputs = vector![0.0, 0.0, 5.0];
         assert_vector_eq!(equation.inputs, expected_inputs);
@@ -247,10 +235,8 @@ mod tests {
 
     #[test]
     fn stamp_current_source() {
-        let mut builder = Builder::new(3, 0);
-        builder.stamp_current_source(5.0, 1, 2);
-
-        let equation = builder.build().unwrap();
+        let mut equation = Equation::new(3, 0);
+        equation.stamp_current_source(5.0, 1, 2);
 
         let expected_inputs = vector![-5.0, 5.0];
         assert_vector_eq!(equation.inputs, expected_inputs);
@@ -258,58 +244,57 @@ mod tests {
 
     #[test]
     fn stamp_too_many_voltage_sources() {
-        let mut builder = Builder::new(3, 0);
-        builder.stamp_voltage_source(5.0, 1, 2, 0);
+        let mut equation = Equation::new(3, 0);
+        equation.stamp_voltage_source(5.0, 1, 2, 0);
 
-        let builder_result = builder.build();
+        let solution = equation.solve();
 
-        assert!(builder_result.is_err());
+        assert!(solution.is_err());
     }
 
     #[test]
     fn solve_simple_circuit() {
-        let mut builder = Builder::new(2, 0);
-        builder.stamp_current_source(1.0, 0, 1);
-        builder.stamp_resistor(100.0, 1, 0);
-
-        let equation = builder.build().unwrap();
+        let mut equation = Equation::new(2, 0);
+        equation.stamp_current_source(1.0, 0, 1);
+        equation.stamp_resistor(100.0, 1, 0);
 
         let solution = equation.solve().unwrap();
 
         let expected_voltages = vec![0.0, 100.0];
-        assert_eq!(solution.voltages(), expected_voltages);
+        assert_eq!(solution.voltages(), &expected_voltages);
     }
 
     #[test]
     fn solve_simple_circuit_with_voltage_source() {
-        let mut builder = Builder::new(2, 1);
-        builder.stamp_voltage_source(10.0, 0, 1, 0);
-        builder.stamp_resistor(10.0, 1, 0);
-
-        let equation = builder.build().unwrap();
+        let mut equation = Equation::new(2, 1);
+        equation.stamp_voltage_source(10.0, 0, 1, 0);
+        equation.stamp_resistor(10.0, 1, 0);
 
         let solution = equation.solve().unwrap();
 
         let expected_voltages = vec![0.0, 10.0];
         let expected_currents = vec![1.0];
-        assert_eq!(solution.voltages(), expected_voltages);
-        assert_eq!(solution.currents(), expected_currents);
+        assert_eq!(solution.voltages(), &expected_voltages);
+        assert_eq!(solution.currents(), &expected_currents);
     }
 
     #[test]
     fn solve_simple_circuit_with_wire() {
-        let mut builder = Builder::new(3, 1);
-        builder.stamp_current_source(1.0, 0, 1);
-        builder.stamp_voltage_source(0.0, 1, 2, 0);
-        builder.stamp_resistor(100.0, 2, 0);
-
-        let equation = builder.build().unwrap();
+        let mut equation = Equation::new(3, 1);
+        equation.stamp_current_source(1.0, 0, 1);
+        equation.stamp_voltage_source(0.0, 1, 2, 0);
+        equation.stamp_resistor(100.0, 2, 0);
 
         let solution = equation.solve().unwrap();
 
         let expected_voltages = vec![0.0, 100.0, 100.0];
         let expected_currents = vec![1.0];
-        assert_eq!(solution.voltages(), expected_voltages);
-        assert_eq!(solution.currents(), expected_currents);
+        assert_eq!(solution.voltages(), &expected_voltages);
+        assert_eq!(solution.currents(), &expected_currents);
+    }
+
+    #[bench]
+    fn bench_solve(b: &mut Bencher) {
+        b.iter(|| solve_simple_circuit_with_voltage_source());
     }
 }

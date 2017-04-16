@@ -1,6 +1,8 @@
 
-use solver::test::create_planner;
-use solver::test::run_solver_system;
+use solver::tests::create_planner;
+use solver::tests::run_loop_iteration;
+
+use test::Bencher;
 
 #[test]
 fn resistor_voltagesource() {
@@ -43,8 +45,7 @@ fn resistor_voltagesource() {
         }
     }
 
-    // Run the solver
-    run_solver_system(&mut planner);
+    run_loop_iteration(&mut planner);
 
     // Assert the circuit elements have the correct state
     let expected_voltage = voltage_source::DEFAULT_VOLTAGE;
@@ -133,8 +134,7 @@ fn resistor_voltagesource_wire() {
         }
     }
 
-    // Run the solver
-    run_solver_system(&mut planner);
+    run_loop_iteration(&mut planner);
 
     // Assert the circuit elements have the correct state
     let expected_voltage = voltage_source::DEFAULT_VOLTAGE;
@@ -217,8 +217,7 @@ fn resistor_currentsource() {
         }
     }
 
-    // Run the solver
-    run_solver_system(&mut planner);
+    run_loop_iteration(&mut planner);
 
     // Assert the circuit elements have the correct state
     let expected_voltage = current_source::DEFAULT_CURRENT * resistor::DEFAULT_RESISTANCE;
@@ -289,8 +288,7 @@ fn resistor_voltagesource_ground() {
         }
     }
 
-    // Run the solver
-    run_solver_system(&mut planner);
+    run_loop_iteration(&mut planner);
 
     // Assert the circuit elements have the correct state
     let expected_voltage = voltage_source::DEFAULT_VOLTAGE;
@@ -319,4 +317,9 @@ fn resistor_voltagesource_ground() {
         }
         None => panic!("oh no"),
     }
+}
+
+#[bench]
+fn bench(b: &mut Bencher) {
+    b.iter(|| resistor_voltagesource_wire());
 }

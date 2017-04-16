@@ -10,6 +10,10 @@
 #![cfg_attr(feature = "dev", feature(plugin))]
 #![cfg_attr(feature = "dev", plugin(clippy))]
 
+#![cfg_attr(test, feature(test))]
+#[cfg(test)]
+extern crate test;
+
 #[cfg(test)]
 #[macro_use]
 extern crate rulinalg;
