@@ -1,5 +1,5 @@
 
-mod equation;
+pub mod equation;
 mod stamp_static;
 
 pub mod solve;

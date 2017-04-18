@@ -52,7 +52,7 @@ fn update_circuit_state(arg: &specs::RunArg) {
             }
             for (v_input, &mut CalculatedCurrent(ref mut current)) in
                 (&v_inputs, &mut calc_currents).join() {
-                *current = currents[v_input.index];
+                *current = currents[v_input.0];
             }
         }
         Err(error) => println!("Unsolvable circuit: {}", error),

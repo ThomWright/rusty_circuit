@@ -7,11 +7,28 @@ pub mod wire;
 pub mod ground;
 
 #[derive(Debug, Clone, Copy)]
+pub enum Type {
+    CurrentSource(f64),
+    Ground,
+    Resistor(f64),
+    VoltageSource(f64),
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct CircuitElement {
-    pub display_name: &'static str,
+    typ: Type,
+    display_name: &'static str,
 }
 impl specs::Component for CircuitElement {
     type Storage = specs::VecStorage<CircuitElement>;
+}
+impl CircuitElement {
+    pub fn typ(&self) -> Type {
+        self.typ
+    }
+    pub fn display_name(&self) -> &'static str {
+        self.display_name
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
