@@ -6,13 +6,17 @@ pub fn create_planner() -> specs::Planner<Delta> {
     use elements::Nodes;
     use elements::CalculatedCurrent;
     use elements::CircuitElement;
-    use elements::voltage_source::VoltageInput;
+    use elements::resistor::Resistor;
+    use elements::current_source::CurrentSource;
+    use elements::voltage_source::VoltageSource;
 
     let mut world = specs::World::new();
     world.register::<CircuitElement>();
     world.register::<Nodes>();
     world.register::<CalculatedCurrent>();
-    world.register::<VoltageInput>();
+    world.register::<VoltageSource>();
+    world.register::<CurrentSource>();
+    world.register::<Resistor>();
 
     let mut planner = specs::Planner::with_num_threads(world, 1);
     planner.add_system(solver::solve::System::default(), "solver", 10);

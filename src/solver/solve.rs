@@ -1,7 +1,7 @@
 use specs;
 use elements::Nodes;
 use elements::CalculatedCurrent;
-use elements::voltage_source::VoltageInput;
+use elements::voltage_source::VoltageSource;
 use solver::equation;
 use Delta;
 
@@ -35,7 +35,7 @@ fn update_circuit_state(arg: &specs::RunArg) {
     let (mut nodes, mut calc_currents, v_inputs, equation) = arg.fetch(|w| {
         (w.write::<Nodes>(),
          w.write::<CalculatedCurrent>(),
-         w.read::<VoltageInput>(),
+         w.read::<VoltageSource>(),
          w.read_resource::<equation::Equation>())
     });
 
@@ -52,7 +52,7 @@ fn update_circuit_state(arg: &specs::RunArg) {
             }
             for (v_input, &mut CalculatedCurrent(ref mut current)) in
                 (&v_inputs, &mut calc_currents).join() {
-                *current = currents[v_input.0];
+                *current = currents[v_input.index];
             }
         }
         Err(error) => println!("Unsolvable circuit: {}", error),

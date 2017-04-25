@@ -8,10 +8,10 @@ pub mod ground;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Type {
-    CurrentSource(f64),
+    CurrentSource,
     Ground,
-    Resistor(f64),
-    VoltageSource(f64),
+    Resistor,
+    VoltageSource,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -45,8 +45,6 @@ impl Default for Node {
     }
 }
 
-// TODO Make more specialised Node components? e.g. TwoNodeDirectional?
-// Better type safety not indexing vectors directly.
 #[derive(Debug)]
 pub struct Nodes(pub Vec<Node>);
 impl Nodes {
