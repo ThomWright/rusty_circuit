@@ -1,5 +1,4 @@
 use specs;
-use elements::Type;
 use elements::CircuitElement;
 use elements::Nodes;
 use elements::CalculatedCurrent;
@@ -43,10 +42,7 @@ impl specs::Component for VoltageSource {
 
 pub fn create(world: &mut specs::World) -> specs::Entity {
     world.create_now()
-        .with(CircuitElement {
-            typ: Type::VoltageSource,
-            display_name: NAME,
-        })
+        .with(CircuitElement { display_name: NAME })
         .with(Nodes::new(2))
         .with(VoltageSource::default())
         .with(CalculatedCurrent::default())

@@ -1,5 +1,4 @@
 use specs;
-use elements::Type;
 use elements::CircuitElement;
 use elements::Nodes;
 
@@ -33,10 +32,7 @@ impl specs::Component for CurrentSource {
 
 pub fn create(world: &mut specs::World) -> specs::Entity {
     world.create_now()
-        .with(CircuitElement {
-            typ: Type::CurrentSource,
-            display_name: NAME,
-        })
+        .with(CircuitElement { display_name: NAME })
         .with(Nodes::new(2))
         .with(CurrentSource::default())
         .build()

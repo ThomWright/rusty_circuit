@@ -7,12 +7,14 @@ use solver::equation;
 
 // Create an equation builder with all static parts of the circuit stamped.
 //
-// Elements that change over time, (e.g. sine wave sources, capacitors), or need linearization
+// Elements that change over time, (e.g. sine wave sources, capacitors), or
+// need linearization
 // (e.g. diodes) don't stamp here.
 //
 // Should be called whenever the circuit is modified.
 //
-// This is not a specs::System, because it runs before the 'update' event loop cycle, and has no
+// This is not a specs::System, because it runs before the 'update' event loop
+// cycle, and has no
 // dependency on Delta.
 pub fn create_static_equation(world: &mut specs::World) -> equation::Equation {
     use specs::Join;
@@ -47,29 +49,28 @@ pub fn create_static_equation(world: &mut specs::World) -> equation::Equation {
     // Current sources
     for (nodes, ci) in (&nodes_ticket, &c_sources).join() {
         let &Nodes(ref ns) = nodes;
+        let from_node = ns[ci.node_index_from()];
+        let to_node = ns[ci.node_index_to()];
 
-        equation.stamp_current_source(ci.current,
-                                      ns[ci.node_index_from()].index,
-                                      ns[ci.node_index_to()].index);
+        equation.stamp_current_source(ci.current, from_node.index, to_node.index);
     }
 
     // Voltage sources
     for (nodes, vi) in (&nodes_ticket, &v_sources).join() {
         let &Nodes(ref ns) = nodes;
+        let from_node = ns[vi.node_index_from()];
+        let to_node = ns[vi.node_index_to()];
 
-        equation.stamp_voltage_source(vi.voltage,
-                                      ns[vi.node_index_from()].index,
-                                      ns[vi.node_index_to()].index,
-                                      vi.index);
+        equation.stamp_voltage_source(vi.voltage, from_node.index, to_node.index, vi.index);
     }
 
     // Resistors
     for (nodes, res) in (&nodes_ticket, &resistors).join() {
         let &Nodes(ref ns) = nodes;
+        let n0 = ns[res.node_indexes.0];
+        let n1 = ns[res.node_indexes.1];
 
-        equation.stamp_resistor(res.resistance,
-                                ns[res.node_indexes.0].index,
-                                ns[res.node_indexes.1].index);
+        equation.stamp_resistor(res.resistance(), n0.index, n1.index);
     }
 
     equation

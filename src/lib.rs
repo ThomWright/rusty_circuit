@@ -21,9 +21,13 @@ extern crate rulinalg;
 #[cfg(not(test))]
 extern crate rulinalg;
 
+#[cfg(test)]
+#[macro_use]
+extern crate assert_approx_eq;
+
 extern crate specs;
 
 pub mod elements;
 pub mod solver;
 
-pub type Delta = f32;
+pub type Delta = f64;

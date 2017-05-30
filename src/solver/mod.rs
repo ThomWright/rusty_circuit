@@ -9,3 +9,5 @@ pub use self::stamp_static::create_static_equation;
 mod tests;
 #[cfg(test)]
 mod test_static_circuits;
+#[cfg(test)]
+mod test_dynamic_circuits;

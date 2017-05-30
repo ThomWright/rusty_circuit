@@ -1,5 +1,6 @@
 use specs;
 
+pub mod capacitor;
 pub mod resistor;
 pub mod voltage_source;
 pub mod current_source;
@@ -7,25 +8,13 @@ pub mod wire;
 pub mod ground;
 
 #[derive(Debug, Clone, Copy)]
-pub enum Type {
-    CurrentSource,
-    Ground,
-    Resistor,
-    VoltageSource,
-}
-
-#[derive(Debug, Clone, Copy)]
 pub struct CircuitElement {
-    typ: Type,
     display_name: &'static str,
 }
 impl specs::Component for CircuitElement {
     type Storage = specs::VecStorage<CircuitElement>;
 }
 impl CircuitElement {
-    pub fn typ(&self) -> Type {
-        self.typ
-    }
     pub fn display_name(&self) -> &'static str {
         self.display_name
     }
@@ -69,5 +58,17 @@ impl specs::Component for CalculatedCurrent {
 impl Default for CalculatedCurrent {
     fn default() -> Self {
         CalculatedCurrent(0f64)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct DerivedCurrent(pub f64);
+impl specs::Component for DerivedCurrent {
+    type Storage = specs::HashMapStorage<DerivedCurrent>;
+}
+
+impl Default for DerivedCurrent {
+    fn default() -> Self {
+        DerivedCurrent(0f64)
     }
 }

@@ -13,6 +13,9 @@ rulinalg = "0.4.2"
 specs = "0.8.1"
 clippy = {version = "0.0.122", optional = true}
 
+[dev-dependencies]
+assert_approx_eq = "1.0.0"
+
 [features]
 default = []
 dev = ["clippy"]

@@ -15,8 +15,8 @@ An electronic circuit simulator, written using an [ECS](https://en.wikipedia.org
     - [x] Current source
     - [x] Wire
     - [x] Ground
-- [ ] Transient analysis
-    - [ ] Capacitors
+- [x] Transient analysis
+    - [x] Capacitors
     - [ ] Inductors
 - [ ] Time-varying sources
 - [ ] Assign node IDs based on connector coordinates
